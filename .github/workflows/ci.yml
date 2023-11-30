@@ -30,6 +30,9 @@ jobs:
         image: epsilla/vectordb
         ports:
           - 8888:8888
+        # Faster health checks
+        options: >-
+          --health-interval 1s
 
     steps:
       - uses: actions/checkout@master
