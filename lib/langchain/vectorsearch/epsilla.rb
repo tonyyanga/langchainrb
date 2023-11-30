@@ -2,6 +2,7 @@
 
 require "securerandom"
 require "json"
+require "timeout"
 
 module Langchain::Vectorsearch
   class Epsilla < Base
@@ -27,12 +28,15 @@ module Langchain::Vectorsearch
 
       @client = ::Epsilla::Client.new(protocol, host, port)
 
-      status_code, response = @client.database.load_db(db_name, db_path)
-      if status_code != 200
-        if status_code == 500 && response["message"].include?("already loaded")
-          Langchain.logger.info("Database already loaded")
-        else
-          raise "Failed to load database: #{response}"
+      Timeout.timeout(5) do
+        status_code, response = @client.database.load_db(db_name, db_path)
+
+        if status_code != 200
+          if status_code == 500 && response["message"].include?("already loaded")
+            Langchain.logger.info("Database already loaded")
+          else
+            raise "Failed to load database: #{response}"
+          end
         end
       end
 
