@@ -15,3 +15,6 @@ gem "rubocop"
 
 # Temporary fix until https://github.com/github/graphql-client/pull/314 is merged
 gem "graphql-client", git: "https://github.com/rmosolgo/graphql-client.git", branch: "start-migrating"
+
+# tmp fix for faraday version conflict
+gem "epsilla-ruby", "~> 0.0.3", path: "../epsilla-ruby-client"

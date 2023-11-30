@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require "securerandom"
+require "json"
+
 module Langchain::Vectorsearch
   class Epsilla < Base
     #
@@ -9,7 +12,7 @@ module Langchain::Vectorsearch
     #     gem "epsilla-ruby", "~> 0.0.3"
     #
     # Usage:
-    #     epsilla = Langchain::Vectorsearch::Epsilla.new(protocol:, host:, port:, db_name:, db_path:, index_name:, llm:)
+    #     epsilla = Langchain::Vectorsearch::Epsilla.new(protocol:, host:, db_name:, db_path:, index_name:, llm:, port:)
     #
     # Initialize Epsilla client
     # @param protocol [String] The protocol to use, e.g. http or https
@@ -22,14 +25,18 @@ module Langchain::Vectorsearch
     def initialize(protocol:, host:, db_name:, db_path:, index_name:, llm:, port: 8888)
       depends_on "epsilla-ruby", req: "epsilla"
 
-      @client = Epsilla::Client.new(
-        protocol: protocol,
-        host: host,
-        port: port
-      )
+      @client = ::Epsilla::Client.new(protocol, host, port)
 
-      status_code, response = @client.database.load_db(db_name: db_name, db_path: db_path)
-      raise "Failed to load database: #{response}" if status_code != 200
+      status_code, response = @client.database.load_db(db_name, db_path)
+      if status_code != 200
+        if status_code == 500 && response["message"].include?("already loaded")
+          Langchain.logger.info("Database already loaded")
+        else
+          raise "Failed to load database: #{response}"
+        end
+      end
+
+      @client.database.use_db(db_name)
 
       @db_name = db_name
       @db_path = db_path
@@ -40,23 +47,15 @@ module Langchain::Vectorsearch
       super(llm: llm)
     end
 
-    # Method supported by Vectorsearch DB to retrieve a default schema
-    # TODO: fix me
-    def get_default_schema
-      @client.database.list_tables
-    end
-
     # Create a table using the index_name passed in the constructor
     def create_default_schema
-      status_code, response = @client.database.create_table(
-        table_name: @table_name,
-        table_fields: [
-          {"name" => "ID", "dataType" => "INT", "primaryKey" => true},
-          {"name" => "Doc", "dataType" => "STRING"},
-          {"name" => "Embedding", "dataType" => "VECTOR_FLOAT", "dimensions" => @vector_dimension}
-        ]
-      )
+      status_code, response = @client.database.create_table(@table_name, [
+        {"name" => "ID", "dataType" => "STRING", "primaryKey" => true},
+        {"name" => "Doc", "dataType" => "STRING"},
+        {"name" => "Embedding", "dataType" => "VECTOR_FLOAT", "dimensions" => @vector_dimension}
+      ])
       raise "Failed to create table: #{response}" if status_code != 200
+
       response
     end
 
@@ -68,14 +67,11 @@ module Langchain::Vectorsearch
     # Add a list of texts to the database
     # @param texts [Array<String>] The list of texts to add
     def add_texts(texts:)
-      data = texts.map do |text, idx|
-        {Doc: text, Embedding: llm.embed(text: text).embedding, ID: idx}
+      data = texts.map do |text|
+        {Doc: text, Embedding: llm.embed(text: text).embedding, ID: SecureRandom.uuid}
       end
 
-      status_code, response = @client.database.insert(
-        table_name: @table_name,
-        table_records: data
-      )
+      status_code, response = @client.database.insert(@table_name, data)
       raise "Failed to insert texts: #{response}" if status_code != 200
       response
     end
@@ -98,17 +94,11 @@ module Langchain::Vectorsearch
     # @param k [Integer] The number of results to return
     # @return [String] The response from the server
     def similarity_search_by_vector(embedding:, k: 4)
-      status_code, response = @client.database.query(
-        table_name: @table_name,
-        query_field: "Embedding",
-        query_vector: embedding,
-        response_fields: ["Doc"],
-        limit: k,
-        with_distance: false
-      )
+      status_code, response = @client.database.query(@table_name, "Embedding", embedding, ["Doc"], k, false)
       raise "Failed to do similarity search: #{response}" if status_code != 200
 
-      response["result"]
+      data = JSON.parse(response)["result"]
+      data.map { |result| result["Doc"] }
     end
 
     # Ask a question and return the answer
@@ -120,7 +110,7 @@ module Langchain::Vectorsearch
       search_results = similarity_search(query: question, k: k)
 
       context = search_results.map do |result|
-        result.content.to_s
+        result.to_s
       end
       context = context.join("\n---\n")
 
