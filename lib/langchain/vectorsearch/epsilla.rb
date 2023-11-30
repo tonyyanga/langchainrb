@@ -61,7 +61,10 @@ module Langchain::Vectorsearch
 
     # Drop the table using the index_name passed in the constructor
     def destroy_default_schema
-      @client.database.drop_table(@table_name)
+      status_code, response = @client.database.drop_table(@table_name)
+      raise "Failed to drop table: #{response}" if status_code != 200
+
+      response
     end
 
     # Add a list of texts to the database
