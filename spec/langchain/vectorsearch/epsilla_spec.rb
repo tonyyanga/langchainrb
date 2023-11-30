@@ -242,10 +242,10 @@ if ENV["EPSILLA_HOST"]
           end
         end
       end
-    end
 
-    after do
-      subject.destroy_default_schema
+      after do
+        subject.destroy_default_schema
+      end
     end
   end
 end
