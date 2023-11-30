@@ -17,4 +17,4 @@ gem "rubocop"
 gem "graphql-client", git: "https://github.com/rmosolgo/graphql-client.git", branch: "start-migrating"
 
 # tmp fix for faraday version conflict
-gem "epsilla-ruby", "~> 0.0.3", path: "../epsilla-ruby-client"
+gem "epsilla-ruby", ">= 0.0.4", git: "https://github.com/tonyyanga/epsilla-ruby-client"

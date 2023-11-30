@@ -7,10 +7,11 @@ GIT
       activesupport (>= 3.0)
       graphql
 
-PATH
-  remote: ../epsilla-ruby-client
+GIT
+  remote: https://github.com/tonyyanga/epsilla-ruby-client
+  revision: 17a763b1c09078babcd5b31f073c9f76d8cd31dd
   specs:
-    epsilla-ruby (0.0.3)
+    epsilla-ruby (0.0.4)
       faraday (>= 1)
 
 PATH
@@ -393,7 +394,7 @@ DEPENDENCIES
   docx (~> 0.8.0)
   dotenv-rails (~> 2.7.6)
   elasticsearch (~> 8.2.0)
-  epsilla-ruby (~> 0.0.3)!
+  epsilla-ruby (>= 0.0.4)!
   eqn (~> 1.6.5)
   google-apis-aiplatform_v1 (~> 0.7)
   google_palm_api (~> 0.1.3)
